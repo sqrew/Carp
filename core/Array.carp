@@ -615,3 +615,35 @@ Example:
   (if (array? binding)
     (foreach-internal (car binding) (cadr binding) expr)
     (macro-error "Binding has to be an array.")))
+
+(defmodule Result
+  (doc all "collects an array of Results into a Result of an array. If any Result is an Error, the first Error encountered is returned.")
+  (defn all [results]
+    (let-do [acc []
+             res (Success [])]
+      (do
+        (for [i 0 (Array.length &results)]
+          (match-ref (Array.unsafe-nth &results i)
+            (Success x) (set! acc (Array.push-back acc (copy x)))
+            (Error e) (do (set! res (Error (copy e)))
+                          (break))))
+        (if (success? &res)
+          (Success acc)
+          res))))
+)
+
+(defmodule Maybe
+  (doc all "collects an array of Maybes into a Maybe of an array. If any Maybe is Nothing, Nothing is returned.")
+  (defn all [maybes]
+    (let-do [acc []
+             res (Just [])]
+      (do
+        (for [i 0 (Array.length &maybes)]
+          (match-ref (Array.unsafe-nth &maybes i)
+            (Just x) (set! acc (Array.push-back acc (copy x)))
+            (Nothing) (do (set! res (Nothing))
+                          (break))))
+        (if (just? &res)
+          (Just acc)
+          res))))
+)

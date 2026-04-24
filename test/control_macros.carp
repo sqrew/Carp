@@ -8,8 +8,70 @@
              (set! test-string @"new-string") ;; ignored, but side-effect performed
              (- 4 4)))
 
+(defn test-result-do [x]
+  (result-do [val (if (> x 0) (Result.Success x) (Result.Error @"Negative"))
+              :guard (> val 10) (Result.Error @"Too small")
+              :let [doubled (* val 2)]]
+    (Result.Success doubled)))
+
+(defn test-maybe-do [x]
+  (maybe-do [val (if (> x 0) (Maybe.Just x) (Maybe.Nothing))
+             :guard (> val 10) (Maybe.Nothing)]
+    (Maybe.Just val)))
+
 (deftest test
   (assert-true test
     (and (= () (test-ignore-do)) (= &test-string "new-string"))
     "ignore-do performs side effects and ignores all results")
+
+  (assert-equal test
+                &(Result.Success 40)
+                &(test-result-do 20)
+                "result-do success path works")
+  (assert-equal test
+                &(Result.Error @"Negative")
+                &(test-result-do -1)
+                "result-do error path (initial) works")
+  (assert-equal test
+                &(Result.Error @"Too small")
+                &(test-result-do 5)
+                "result-do guard path works")
+
+  (assert-equal test
+                &(Maybe.Just 20)
+                &(test-maybe-do 20)
+                "maybe-do success path works")
+  (assert-equal test
+                &(Maybe.Nothing)
+                &(test-maybe-do -1)
+                "maybe-do nothing path (initial) works")
+  (assert-equal test
+                &(Maybe.Nothing)
+                &(test-maybe-do 5)
+                "maybe-do guard path works")
+
+  (assert-true test
+               (Result.success? &(ensure true @"Error"))
+               "ensure success path works")
+  (assert-true test
+               (Result.error? &(ensure false @"Error"))
+               "ensure failure path works")
+
+  (assert-equal test
+                &(the (Result (Array Int) String) (Result.Success [1 2 3]))
+                &(Result.all [(Result.Success 1) (Result.Success 2) (Result.Success 3)])
+                "Result.all success path works")
+  (assert-equal test
+                &(the (Result (Array Int) String) (Result.Error @"Fail"))
+                &(Result.all [(Result.Success 1) (Result.Error @"Fail") (Result.Success 3)])
+                "Result.all error path works")
+
+  (assert-equal test
+                &(the (Maybe (Array Int)) (Maybe.Just [1 2 3]))
+                &(Maybe.all [(Maybe.Just 1) (Maybe.Just 2) (Maybe.Just 3)])
+                "Maybe.all success path works")
+  (assert-equal test
+                &(the (Maybe (Array Int)) (Maybe.Nothing))
+                &(Maybe.all [(Maybe.Just 1) (Maybe.Nothing) (Maybe.Just 3)])
+                "Maybe.all nothing path works")
 )

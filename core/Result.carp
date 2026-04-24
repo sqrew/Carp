@@ -83,6 +83,12 @@ The error value is thrown away.")
       (Success x) (Maybe.Just x)
       (Error _) (Maybe.Nothing)))
 
+  (doc from-maybe "converts a `Maybe` to a `Result`. A `Just` becomes a `Success` and a `Nothing` becomes an `Error` with the provided value.")
+  (defn from-maybe [a error]
+    (match a
+      (Maybe.Nothing) (Error error)
+      (Maybe.Just x) (Success x)))
+
   (doc success? "checks whether the given value `a` is a `Success`.
 
 It is the inverse of [`error?`](#error?).")
@@ -121,4 +127,10 @@ You’ll also need to provide an error message `error` that is given to the `Err
     (match a
       (Nothing) (Result.Error error)
       (Just x) (Result.Success x)))
+
+  (doc from-result "converts a `Result` to a `Maybe`. A `Success` becomes a `Just` and an `Error` becomes a `Nothing`.")
+  (defn from-result [a]
+    (match a
+      (Result.Error _) (Nothing)
+      (Result.Success x) (Just x)))
 )

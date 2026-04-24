@@ -144,7 +144,7 @@ Example:
 (defmacro when [condition form]
   (list 'if condition form (list)))
 
-(doc unless "is an `if` without a then branch.")
+(doc unless "is an \`if\` without a then branch.")
 (defmacro unless [condition form]
   (list 'if condition (list) form))
 
@@ -283,4 +283,49 @@ Example:
             ;; otherwise, this resolves to the form that will call the function, e.g. (add-three-vals 2 3 1)
             (list 'eval (list 'apply f-name (list 'quote (append quote-args (collect-into
                                                                              remaining list))))))))
-  )
+)
+
+(hidden monadic-do-internal)
+(defndynamic monadic-do-internal [type bindings body]
+  (if (empty? bindings)
+    (cons 'do body)
+    (let [head (car bindings)]
+      (cond
+        (= head ':guard)
+          (let [condition (cadr bindings)
+                else-val (caddr bindings)
+                rest (cddr (cdr bindings))]
+            `(if %condition
+               %(monadic-do-internal type rest body)
+               %else-val))
+        (= head ':let)
+          (let [let-bindings (cadr bindings)
+                rest (cddr bindings)]
+            `(let %let-bindings
+               %(monadic-do-internal type rest body)))
+        (let [var head
+              expr (cadr bindings)
+              rest (cddr bindings)]
+          (if (= type 'Result)
+            `(match %expr
+               (Result.Success %var) %(monadic-do-internal type rest body)
+               (Result.Error e) (Result.Error e))
+            `(match %expr
+               (Maybe.Just %var) %(monadic-do-internal type rest body)
+               (Maybe.Nothing) (Maybe.Nothing))))))))
+
+(doc result-do "Flattened error handling for Result types.
+Supports standard bindings [var expr], :guard [cond else-expr], and :let [bindings].
+If any step returns a Result.Error, the entire block returns that error immediately.")
+(defmacro result-do [bindings :rest body]
+  (monadic-do-internal 'Result (collect-into bindings list) body))
+
+(doc maybe-do "Flattened handling for Maybe types.
+Supports standard bindings [var expr], :guard [cond else-expr], and :let [bindings].
+If any step returns Maybe.Nothing, the entire block returns Nothing immediately.")
+(defmacro maybe-do [bindings :rest body]
+  (monadic-do-internal 'Maybe (collect-into bindings list) body))
+
+(doc ensure "Returns (Result.Success ()) if `condition` is true, otherwise returns (Result.Error `error`).")
+(defmacro ensure [condition error]
+  `(if %condition (Result.Success ()) (Result.Error %error)))
