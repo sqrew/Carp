@@ -928,6 +928,10 @@ static void wgpu_update_uniform_buffer(WGPUContext* ctx,
     wgpuQueueWriteBuffer(ctx->queue, ub->buffer, 0, data, write_size);
 }
 
+static WGPUBuffer wgpu_uniform_buffer_get_buffer(WGPUUniformBufferWrapper* ub) {
+    return ub ? ub->buffer : NULL;
+}
+
 static void wgpu_uniform_buffer_free(WGPUUniformBufferWrapper* ub) {
     if (!ub) return;
     if (ub->buffer) wgpuBufferRelease(ub->buffer);
@@ -1853,12 +1857,13 @@ static WGPUBindGroup wgpu_create_voxel_render_bind_group_chunked(
     WGPUBuffer storage_buf2,
     WGPUUniformBufferWrapper* ub,
     WGPURenderTexture* voxel_tex,
+    WGPURenderTexture* fields_tex,
     WGPUSampler voxel_sampler,
     WGPUBuffer chunk_lookup_buf,
     WGPURenderTexture* noise_tex,
     WGPUSampler noise_sampler)
 {
-    if (!ctx || !pipe || !ub || !voxel_tex || !voxel_sampler || !chunk_lookup_buf || !noise_tex || !noise_sampler) {
+    if (!ctx || !pipe || !ub || !voxel_tex || !fields_tex || !voxel_sampler || !chunk_lookup_buf || !noise_tex || !noise_sampler) {
         wgpu_set_error("wgpu_create_voxel_render_bind_group_chunked: null argument");
         return NULL;
     }
@@ -1869,7 +1874,7 @@ static WGPUBindGroup wgpu_create_voxel_render_bind_group_chunked(
         return NULL;
     }
 
-    WGPUBindGroupEntry entries[8] = {
+    WGPUBindGroupEntry entries[9] = {
         {
             .binding = 0,
             .buffer  = storage_buf1,
@@ -1910,10 +1915,14 @@ static WGPUBindGroup wgpu_create_voxel_render_bind_group_chunked(
             .binding = 7,
             .sampler = noise_sampler,
         },
+        {
+            .binding     = 8,
+            .textureView = fields_tex->view,
+        },
     };
     WGPUBindGroupDescriptor desc = {
         .layout     = layout,
-        .entryCount = 8,
+        .entryCount = 9,
         .entries    = entries,
     };
 
@@ -2006,7 +2015,7 @@ static void wgpu_copy_buffer_subregion_to_3d_texture(
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(ctx->queue, 1, &cmd);
     wgpuCommandBufferRelease(cmd);
-    wgpuDevicePoll(ctx->device, 1, NULL);
+    // wgpuDevicePoll(ctx->device, 1, NULL);
 }
 
 #endif /* WGPU_RENDER_HELPERS_H */

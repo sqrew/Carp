@@ -196,7 +196,7 @@
                                                                             "wgpu_create_voxel_render_bind_group")
   (register create-voxel-render-bind-group-chunked- (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper)
                                                           WGPUBuffer WGPUBuffer (Ptr WGPUUniformBufferWrapper)
-                                                          (Ptr WGPURenderTexture) WGPUSampler WGPUBuffer
+                                                          (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler WGPUBuffer
                                                           (Ptr WGPURenderTexture) WGPUSampler] WGPUBindGroup)
                                                                                     "wgpu_create_voxel_render_bind_group_chunked")
 
@@ -320,8 +320,8 @@ Returns (Success bind-group) or (Error message).")
 
   (doc create-voxel-render-bind-group-chunked "Creates a bind group for chunked voxel rendering.
 Returns (Success bind-group) or (Error message).")
-  (defn create-voxel-render-bind-group-chunked [ctx pipeline storage-buf1 storage-buf2 ub voxel-tex voxel-sampler chunk-lookup-buf noise-tex noise-sampler]
-    (let [bg (create-voxel-render-bind-group-chunked- ctx pipeline storage-buf1 storage-buf2 ub voxel-tex voxel-sampler chunk-lookup-buf noise-tex noise-sampler)]
+  (defn create-voxel-render-bind-group-chunked [ctx pipeline storage-buf1 storage-buf2 ub voxel-tex fields-tex voxel-sampler chunk-lookup-buf noise-tex noise-sampler]
+    (let [bg (create-voxel-render-bind-group-chunked- ctx pipeline storage-buf1 storage-buf2 ub voxel-tex fields-tex voxel-sampler chunk-lookup-buf noise-tex noise-sampler)]
       (if (bindgroup-null?- bg)
         (Result.Error (get-error))
         (Result.Success bg))))
@@ -396,6 +396,7 @@ Clear color is black.")
   (register update-uniform-buffer- (Fn [(Ptr WGPUContext) (Ptr WGPUUniformBufferWrapper)
                                          (Ptr Float) Uint64] ())              "wgpu_update_uniform_buffer")
   (register free-uniform-buffer    (Fn [(Ptr WGPUUniformBufferWrapper)] ())    "wgpu_uniform_buffer_free")
+  (register uniform-buffer-get-buffer (Fn [(Ptr WGPUUniformBufferWrapper)] WGPUBuffer) "wgpu_uniform_buffer_get_buffer")
 
   ; -- Depth texture -----------------------------------------------
 

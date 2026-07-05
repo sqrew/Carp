@@ -378,7 +378,7 @@ visitSymbol visited allowAmbig tenv env xobj@(SymPat path mode) =
               -- Skip concretization; the real definition will be available at emit time.
                 pure (Right xobj)
               else
-                let theType = fromMaybe (error "concretize: can't concretize a symbol without a type") $ xobjTy theXObj
+                let theType = fromMaybe (error ("concretize: can't concretize a symbol without a type: " ++ show path ++ " of " ++ show theXObj ++ " at info: " ++ prettyInfoFromXObj theXObj)) $ xobjTy theXObj
                     typeOfVisited = fromMaybe (error ("Missing type on " ++ show xobj ++ " at " ++ prettyInfoFromXObj xobj ++ " when looking up path " ++ show path)) (xobjTy xobj)
                  in if --(trace $ "CHECKING " ++ getName xobj ++ " : " ++ show theType ++ " with visited type " ++ show typeOfVisited ++ " and visited definitions: " ++ show visitedDefinitions) $
                     (isTypeGeneric theType && not (isTypeGeneric typeOfVisited))

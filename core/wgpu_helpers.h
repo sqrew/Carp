@@ -247,7 +247,7 @@ static void wgpu_dispatch_and_wait(WGPUContext* ctx,
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(ctx->queue, 1, &cmd);
     wgpuCommandBufferRelease(cmd);
-    wgpuDevicePoll(ctx->device, 1, NULL);
+    // wgpuDevicePoll(ctx->device, 1, NULL);
 }
 
 /* ------------------------------------------------------------------ */
