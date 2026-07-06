@@ -2018,4 +2018,19 @@ static void wgpu_copy_buffer_subregion_to_3d_texture(
     // wgpuDevicePoll(ctx->device, 1, NULL);
 }
 
+static void wgpu_copy_buffer_to_buffer(
+    WGPUContext* ctx,
+    WGPUBuffer src_buffer,
+    WGPUBuffer dst_buffer,
+    uint64_t size)
+{
+    WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder(ctx->device, NULL);
+    wgpuCommandEncoderCopyBufferToBuffer(encoder, src_buffer, 0, dst_buffer, 0, size);
+    WGPUCommandBuffer cmd = wgpuCommandEncoderFinish(encoder, NULL);
+    wgpuCommandEncoderRelease(encoder);
+    wgpuQueueSubmit(ctx->queue, 1, &cmd);
+    wgpuCommandBufferRelease(cmd);
+    // wgpuDevicePoll(ctx->device, 1, NULL);
+}
+
 #endif /* WGPU_RENDER_HELPERS_H */

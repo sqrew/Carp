@@ -190,6 +190,7 @@
                                         "wgpu_copy_buffer_to_3d_texture")
   (register copy-buffer-subregion-to-3d-texture- (Fn [(Ptr WGPUContext) WGPUBuffer Long (Ptr WGPURenderTexture) Int Int Int Int Int Int] ())
                                                   "wgpu_copy_buffer_subregion_to_3d_texture")
+  (register copy-buffer-to-buffer- (Fn [(Ptr WGPUContext) WGPUBuffer WGPUBuffer Uint64] ()) "wgpu_copy_buffer_to_buffer")
   (register create-voxel-render-bind-group- (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper)
                                                   WGPUBuffer WGPUBuffer (Ptr WGPUUniformBufferWrapper)
                                                   (Ptr WGPURenderTexture) WGPUSampler] WGPUBindGroup)
@@ -609,5 +610,9 @@ Returns (Success bind-group) or (Error message).")
   (doc copy-buffer-to-3d-texture-offset "Copies a buffer to a 3D texture at a destination offset, assuming source offset is 0.")
   (defn copy-buffer-to-3d-texture-offset [ctx buffer rt dx dy dz w h d]
     (copy-buffer-subregion-to-3d-texture- ctx buffer 0l rt dx dy dz w h d))
+
+  (doc copy-buffer-to-buffer "Copies bytes from a source GPU buffer to a destination GPU buffer.")
+  (defn copy-buffer-to-buffer [ctx src-buf dst-buf size-bytes]
+    (copy-buffer-to-buffer- ctx src-buf dst-buf (Uint64.from-long (Long.from-int size-bytes))))
 
 )
