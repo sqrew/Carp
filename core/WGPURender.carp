@@ -208,6 +208,9 @@
   (register run-pass-          (Fn [(Ptr WGPUFrameState) (Ptr WGPURenderPipelineWrapper)
                                      WGPUBindGroup (Ptr WGPURenderTexture)] ())
                                                                             "wgpu_run_pass")
+  (register run-pass-viewport- (Fn [(Ptr WGPUFrameState) (Ptr WGPURenderPipelineWrapper)
+                                     WGPUBindGroup (Ptr WGPURenderTexture) Float Float Float Float] ())
+                                                                            "wgpu_run_pass_viewport")
   (register end-frame          (Fn [(Ptr WGPUFrameState) (Ptr WGPURenderSurface)
                                      (Ptr WGPUContext)] ())                 "wgpu_end_frame")
   (register free-frame         (Fn [(Ptr WGPUFrameState)] ())               "wgpu_frame_free")
@@ -347,6 +350,11 @@ Clear color is black.")
       (Maybe.Just rt) (run-pass- frame pipeline bind-group rt)
       (Maybe.Nothing)  (run-pass- frame pipeline bind-group (null-render-texture))))
 
+  (defn run-pass-viewport [frame pipeline bind-group target x y w h]
+    (match target
+      (Maybe.Just rt) (run-pass-viewport- frame pipeline bind-group rt x y w h)
+      (Maybe.Nothing)  (run-pass-viewport- frame pipeline bind-group (null-render-texture) x y w h)))
+
   ; ================================================================
   ; Vertex buffer, uniform buffer, depth texture, geometry pipeline
   ; Index buffer, indexed drawing
@@ -444,6 +452,10 @@ Clear color is black.")
                                           WGPUBindGroup (Ptr WGPUVertexBufferWrapper) (Ptr WGPUDepthTexture)
                                           Uint32 (Ptr WGPURenderTexture)] ())
                                                                                "wgpu_run_geom_pass_overlay")
+  (register run-geom-pass-overlay-viewport- (Fn [(Ptr WGPUFrameState) (Ptr WGPUGeomPipelineWrapper)
+                                                   WGPUBindGroup (Ptr WGPUVertexBufferWrapper) (Ptr WGPUDepthTexture)
+                                                   Uint32 (Ptr WGPURenderTexture) Float Float Float Float] ())
+                                                                               "wgpu_run_geom_pass_overlay_viewport")
 
   ; -- Index buffer ------------------------------------------------
 
@@ -561,6 +573,11 @@ Clear color is black, depth clear value is 1.0.")
     (match target
       (Maybe.Just rt) (run-geom-pass-overlay- frame pipeline bind-group vertex-buffer depth vertex-count rt)
       (Maybe.Nothing)  (run-geom-pass-overlay- frame pipeline bind-group vertex-buffer depth vertex-count (null-render-texture))))
+
+  (defn run-geom-pass-overlay-viewport [frame pipeline bind-group vertex-buffer depth vertex-count target x y w h]
+    (match target
+      (Maybe.Just rt) (run-geom-pass-overlay-viewport- frame pipeline bind-group vertex-buffer depth vertex-count rt x y w h)
+      (Maybe.Nothing)  (run-geom-pass-overlay-viewport- frame pipeline bind-group vertex-buffer depth vertex-count (null-render-texture) x y w h)))
 
   (doc create-index-buffer "Creates a GPU index buffer from an (Array Int).
 Each element is treated as a uint32 index.

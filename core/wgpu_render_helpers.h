@@ -238,7 +238,7 @@ static WGPURenderTexture* wgpu_create_render_texture(WGPUContext* ctx,
     }
 
     WGPUTextureDescriptor tex_desc = {
-        .usage       = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
+        .usage       = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
         .dimension   = WGPUTextureDimension_2D,
         .size        = { .width = width, .height = height, .depthOrArrayLayers = 1 },
         .format      = format,
@@ -2109,6 +2109,92 @@ static WGPUBindGroup wgpu_create_jit_bind_group(
         wgpu_set_error("wgpu_create_jit_bind_group: bind group creation failed");
     }
     return bg;
+}
+
+static void wgpu_run_pass_viewport(WGPUFrameState* frame,
+                                    WGPURenderPipelineWrapper* pipe,
+                                    WGPUBindGroup bind_group,
+                                    WGPURenderTexture* target,
+                                    float x, float y, float w, float h) {
+    if (!frame || !pipe) return;
+
+    WGPUTextureView target_view = target ? target->view : frame->swapchain_view;
+
+    WGPURenderPassColorAttachment color_att = {
+        .view       = target_view,
+        .loadOp     = WGPULoadOp_Clear,
+        .storeOp    = WGPUStoreOp_Store,
+        .clearValue = { .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+        .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
+    };
+
+    WGPURenderPassDescriptor pass_desc = {
+        .colorAttachmentCount = 1,
+        .colorAttachments     = &color_att,
+    };
+
+    WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(frame->encoder, &pass_desc);
+    if (!pass) return;
+
+    wgpuRenderPassEncoderSetViewport(pass, x, y, w, h, 0.0f, 1.0f);
+    wgpuRenderPassEncoderSetPipeline(pass, pipe->pipeline);
+    if (bind_group) {
+        wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, NULL);
+    }
+    wgpuRenderPassEncoderDraw(pass, 3, 1, 0, 0);
+    wgpuRenderPassEncoderEnd(pass);
+    wgpuRenderPassEncoderRelease(pass);
+}
+
+static void wgpu_run_geom_pass_overlay_viewport(WGPUFrameState* frame,
+                                                 WGPUGeomPipelineWrapper* pipe,
+                                                 WGPUBindGroup bind_group,
+                                                 WGPUVertexBufferWrapper* vb,
+                                                 WGPUDepthTexture* depth,
+                                                 uint32_t vertex_count,
+                                                 WGPURenderTexture* target,
+                                                 float x, float y, float w, float h) {
+    if (!frame || !pipe || !vb || !depth) return;
+
+    WGPUTextureView target_view = target ? target->view : frame->swapchain_view;
+
+    WGPURenderPassColorAttachment color_att = {
+        .view       = target_view,
+        .loadOp     = WGPULoadOp_Load,
+        .storeOp    = WGPUStoreOp_Store,
+        .clearValue = { .r = 0.0, .g = 0.0, .b = 0.0, .a = 1.0 },
+        .depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
+    };
+
+    WGPURenderPassDepthStencilAttachment depth_att = {
+        .view              = depth->view,
+        .depthLoadOp       = WGPULoadOp_Clear,
+        .depthStoreOp      = WGPUStoreOp_Store,
+        .depthClearValue   = 1.0f,
+        .stencilLoadOp     = WGPULoadOp_Undefined,
+        .stencilStoreOp    = WGPUStoreOp_Undefined,
+        .depthReadOnly     = false,
+        .stencilReadOnly   = false,
+    };
+
+    WGPURenderPassDescriptor pass_desc = {
+        .colorAttachmentCount    = 1,
+        .colorAttachments        = &color_att,
+        .depthStencilAttachment  = &depth_att,
+    };
+
+    WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass(frame->encoder, &pass_desc);
+    if (!pass) return;
+
+    wgpuRenderPassEncoderSetViewport(pass, x, y, w, h, 0.0f, 1.0f);
+    wgpuRenderPassEncoderSetPipeline(pass, pipe->pipeline);
+    if (bind_group) {
+        wgpuRenderPassEncoderSetBindGroup(pass, 0, bind_group, 0, NULL);
+    }
+    wgpuRenderPassEncoderSetVertexBuffer(pass, 0, vb->buffer, 0, vb->size);
+    wgpuRenderPassEncoderDraw(pass, vertex_count, 1, 0, 0);
+    wgpuRenderPassEncoderEnd(pass);
+    wgpuRenderPassEncoderRelease(pass);
 }
 
 #endif /* WGPU_RENDER_HELPERS_H */
