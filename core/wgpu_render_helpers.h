@@ -2033,4 +2033,82 @@ static void wgpu_copy_buffer_to_buffer(
     // wgpuDevicePoll(ctx->device, 1, NULL);
 }
 
+static WGPUBindGroup wgpu_create_jit_bind_group(
+    WGPUContext* ctx,
+    WGPUComputePipeline pipeline,
+    WGPUBuffer input_buf,
+    WGPUBuffer output_buf,
+    WGPUBuffer uniform_buf,
+    WGPUBuffer chunk_info_buf,
+    WGPUBuffer chunk_lookup_buf,
+    WGPURenderTexture* voxel_tex)
+{
+    WGPUBindGroupLayout layout = wgpuComputePipelineGetBindGroupLayout(pipeline, 0);
+    if (!layout) {
+        wgpu_set_error("wgpu_create_jit_bind_group: failed to get bind group layout");
+        return NULL;
+    }
+
+    WGPUBindGroupEntry entries[6];
+    
+    // Binding 0: input_grid
+    entries[0] = (WGPUBindGroupEntry){
+        .binding = 0,
+        .buffer = input_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(input_buf),
+    };
+    
+    // Binding 1: output_grid
+    entries[1] = (WGPUBindGroupEntry){
+        .binding = 1,
+        .buffer = output_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(output_buf),
+    };
+    
+    // Binding 2: uniforms
+    entries[2] = (WGPUBindGroupEntry){
+        .binding = 2,
+        .buffer = uniform_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(uniform_buf),
+    };
+    
+    // Binding 3: chunk_info
+    entries[3] = (WGPUBindGroupEntry){
+        .binding = 3,
+        .buffer = chunk_info_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(chunk_info_buf),
+    };
+    
+    // Binding 4: chunk_lookup
+    entries[4] = (WGPUBindGroupEntry){
+        .binding = 4,
+        .buffer = chunk_lookup_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(chunk_lookup_buf),
+    };
+    
+    // Binding 5: voxel_texture
+    entries[5] = (WGPUBindGroupEntry){
+        .binding = 5,
+        .textureView = voxel_tex->view,
+    };
+
+    WGPUBindGroupDescriptor desc = {
+        .layout = layout,
+        .entries = entries,
+        .entryCount = 6,
+    };
+
+    WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
+    wgpuBindGroupLayoutRelease(layout);
+    if (!bg) {
+        wgpu_set_error("wgpu_create_jit_bind_group: bind group creation failed");
+    }
+    return bg;
+}
+
 #endif /* WGPU_RENDER_HELPERS_H */

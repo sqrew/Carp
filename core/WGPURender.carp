@@ -191,6 +191,7 @@
   (register copy-buffer-subregion-to-3d-texture- (Fn [(Ptr WGPUContext) WGPUBuffer Long (Ptr WGPURenderTexture) Int Int Int Int Int Int] ())
                                                   "wgpu_copy_buffer_subregion_to_3d_texture")
   (register copy-buffer-to-buffer- (Fn [(Ptr WGPUContext) WGPUBuffer WGPUBuffer Uint64] ()) "wgpu_copy_buffer_to_buffer")
+  (register create-jit-bind-group- (Fn [(Ptr WGPUContext) WGPUComputePipeline WGPUBuffer WGPUBuffer WGPUBuffer WGPUBuffer WGPUBuffer (Ptr WGPURenderTexture)] WGPUBindGroup) "wgpu_create_jit_bind_group")
   (register create-voxel-render-bind-group- (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper)
                                                   WGPUBuffer WGPUBuffer (Ptr WGPUUniformBufferWrapper)
                                                   (Ptr WGPURenderTexture) WGPUSampler] WGPUBindGroup)
@@ -614,5 +615,12 @@ Returns (Success bind-group) or (Error message).")
   (doc copy-buffer-to-buffer "Copies bytes from a source GPU buffer to a destination GPU buffer.")
   (defn copy-buffer-to-buffer [ctx src-buf dst-buf size-bytes]
     (copy-buffer-to-buffer- ctx src-buf dst-buf (Uint64.from-long (Long.from-int size-bytes))))
+
+  (doc create-jit-bind-group "Creates a bind group for JIT shaders containing input grid, output grid, uniforms, chunk info, chunk lookup data, and voxel texture.")
+  (defn create-jit-bind-group [ctx pipeline input-buf output-buf uniform-buf chunk-info-buf chunk-lookup-buf voxel-tex]
+    (let [bg (create-jit-bind-group- ctx pipeline input-buf output-buf uniform-buf chunk-info-buf chunk-lookup-buf voxel-tex)]
+      (if (bindgroup-null?- bg)
+        (Result.Error (get-error))
+        (Result.Success bg))))
 
 )
