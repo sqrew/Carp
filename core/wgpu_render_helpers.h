@@ -26,6 +26,13 @@ typedef struct WGPURenderTexture {
     uint32_t height;
 } WGPURenderTexture;
 
+typedef struct WGPUDepthTexture {
+    WGPUTexture     texture;
+    WGPUTextureView view;
+    uint32_t        width;
+    uint32_t        height;
+} WGPUDepthTexture;
+
 typedef struct WGPURenderPipelineWrapper {
     WGPURenderPipeline   pipeline;
     WGPUPipelineLayout   layout;
@@ -57,6 +64,7 @@ static WGPUTextureFormat wgpu_parse_texture_format(const char* name) {
     if (strcmp(name, "bgra8unorm")  == 0) return WGPUTextureFormat_BGRA8Unorm;
     if (strcmp(name, "rgba8unorm")  == 0) return WGPUTextureFormat_RGBA8Unorm;
     if (strcmp(name, "rgba16float") == 0) return WGPUTextureFormat_RGBA16Float;
+    if (strcmp(name, "rg16float")   == 0) return WGPUTextureFormat_RG16Float;
     if (strcmp(name, "bgra8unorm-srgb") == 0) return WGPUTextureFormat_BGRA8UnormSrgb;
     if (strcmp(name, "rgba8unorm-srgb") == 0) return WGPUTextureFormat_RGBA8UnormSrgb;
     return WGPUTextureFormat_Undefined;
@@ -91,7 +99,14 @@ static WGPURenderSurface* wgpu_create_surface(WGPUContext* ctx,
      * native_display == NULL is treated as X11 with the default display. */
     WGPUSurface surface = NULL;
 
-#if defined(__linux__) || defined(__unix__)
+#if defined(__EMSCRIPTEN__)
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvas_source = {
+        .chain = { .sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector },
+        .selector = { .data = "#canvas", .length = SIZE_MAX },
+    };
+    WGPUSurfaceDescriptor surf_desc = { .nextInChain = &canvas_source.chain };
+    surface = wgpuInstanceCreateSurface(ctx->instance, &surf_desc);
+#elif defined(__linux__) || defined(__unix__)
     if (native_display != NULL) {
         /* Try X11 Xlib first (most common on Linux desktops).
          * native_window_handle is the Window (uint32_t cast to void*).
@@ -460,6 +475,53 @@ static WGPUBindGroup wgpu_create_texture_bind_group(WGPUContext* ctx,
     return bg;
 }
 
+static WGPUBindGroup wgpu_create_composite_bind_group(WGPUContext* ctx,
+                                                     WGPURenderPipelineWrapper* pipe,
+                                                     WGPURenderTexture* terrain_color,
+                                                     WGPUDepthTexture* depth_tex,
+                                                     WGPURenderTexture* volumetric,
+                                                     WGPUSampler sampler) {
+    if (!ctx || !pipe || !terrain_color || !depth_tex || !volumetric || !sampler) {
+        wgpu_set_error("wgpu_create_composite_bind_group: null argument");
+        return NULL;
+    }
+    if (!pipe->bgl) {
+        wgpu_set_error("wgpu_create_composite_bind_group: pipeline has no bind group layout");
+        return NULL;
+    }
+
+    WGPUBindGroupEntry entries[4] = {
+        {
+            .binding     = 0,
+            .textureView = terrain_color->view,
+        },
+        {
+            .binding     = 1,
+            .textureView = depth_tex->view,
+        },
+        {
+            .binding     = 2,
+            .textureView = volumetric->view,
+        },
+        {
+            .binding     = 3,
+            .sampler     = sampler,
+        },
+    };
+
+    WGPUBindGroupDescriptor desc = {
+        .layout     = pipe->bgl,
+        .entryCount = 4,
+        .entries    = entries,
+    };
+
+    WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
+    if (!bg) {
+        wgpu_set_error("wgpu_create_composite_bind_group: bind group creation failed");
+    }
+    return bg;
+}
+
 /* ------------------------------------------------------------------ */
 /* Pass execution                                                      */
 /* ------------------------------------------------------------------ */
@@ -561,8 +623,10 @@ static void wgpu_end_frame(WGPUFrameState* frame, WGPURenderSurface* surf, WGPUC
         wgpuCommandBufferRelease(cmd);
     }
 
+#ifndef __EMSCRIPTEN__
     wgpuSurfacePresent(surf->surface);
     wgpuDevicePoll(ctx->device, 0, NULL);
+#endif
 }
 
 static void wgpu_frame_free(WGPUFrameState* frame) {
@@ -633,7 +697,7 @@ static WGPURenderPipelineWrapper* wgpu_create_render_pipeline_str(WGPUContext* c
 
 #include <GLFW/glfw3.h>
 
-#if defined(__linux__) || defined(__unix__)
+#if (defined(__linux__) || defined(__unix__)) && !defined(__EMSCRIPTEN__)
 #  ifndef GLFW_EXPOSE_NATIVE_X11
 #    define GLFW_EXPOSE_NATIVE_X11
 #  endif
@@ -662,7 +726,14 @@ static WGPURenderSurface* wgpu_create_surface_from_glfw(WGPUContext* ctx,
 
     WGPUSurface surface = NULL;
 
-#if defined(__linux__) || defined(__unix__)
+#if defined(__EMSCRIPTEN__)
+    WGPUEmscriptenSurfaceSourceCanvasHTMLSelector canvas_source = {
+        .chain = { .sType = WGPUSType_EmscriptenSurfaceSourceCanvasHTMLSelector },
+        .selector = { .data = "#canvas", .length = SIZE_MAX },
+    };
+    WGPUSurfaceDescriptor surf_desc = { .nextInChain = &canvas_source.chain };
+    surface = wgpuInstanceCreateSurface(ctx->instance, &surf_desc);
+#elif defined(__linux__) || defined(__unix__)
     Display* display = glfwGetX11Display();
     Window   x11win  = glfwGetX11Window(window);
     WGPUSurfaceSourceXlibWindow x11_source = {
@@ -712,7 +783,7 @@ static WGPURenderSurface* wgpu_create_surface_from_glfw(WGPUContext* ctx,
     };
     wgpuSurfaceConfigure(surface, &config);
 
-#if defined(__linux__) || defined(__unix__)
+#if (defined(__linux__) || defined(__unix__)) && !defined(__EMSCRIPTEN__)
     /* On X11 without a compositor, the window background pixel is unset so
      * old screen content bleeds through on expose events.  Set it to black. */
     {
@@ -755,12 +826,6 @@ typedef struct WGPUUniformBufferWrapper {
     uint64_t   size;
 } WGPUUniformBufferWrapper;
 
-typedef struct WGPUDepthTexture {
-    WGPUTexture     texture;
-    WGPUTextureView view;
-    uint32_t        width;
-    uint32_t        height;
-} WGPUDepthTexture;
 
 typedef struct WGPUGeomPipelineWrapper {
     WGPURenderPipeline  pipeline;
@@ -955,7 +1020,7 @@ static WGPUDepthTexture* wgpu_create_depth_texture(WGPUContext* ctx,
     }
 
     WGPUTextureDescriptor tex_desc = {
-        .usage           = WGPUTextureUsage_RenderAttachment,
+        .usage           = WGPUTextureUsage_RenderAttachment | WGPUTextureUsage_TextureBinding,
         .dimension       = WGPUTextureDimension_2D,
         .size            = { .width = width, .height = height, .depthOrArrayLayers = 1 },
         .format          = WGPUTextureFormat_Depth24Plus,
@@ -1677,7 +1742,7 @@ static WGPURenderTexture* wgpu_create_3d_texture(WGPUContext* ctx,
     }
 
     WGPUTextureDescriptor tex_desc = {
-        .usage       = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst,
+        .usage       = WGPUTextureUsage_TextureBinding | WGPUTextureUsage_CopyDst | WGPUTextureUsage_CopySrc,
         .dimension   = WGPUTextureDimension_3D,
         .size        = { .width = width, .height = height, .depthOrArrayLayers = depth },
         .format      = format,
@@ -1858,12 +1923,15 @@ static WGPUBindGroup wgpu_create_voxel_render_bind_group_chunked(
     WGPUUniformBufferWrapper* ub,
     WGPURenderTexture* voxel_tex,
     WGPURenderTexture* fields_tex,
+    WGPURenderTexture* interaction_tex,
+    WGPURenderTexture* water_tex,
+    WGPURenderTexture* gas_tex,
     WGPUSampler voxel_sampler,
     WGPUBuffer chunk_lookup_buf,
     WGPURenderTexture* noise_tex,
     WGPUSampler noise_sampler)
 {
-    if (!ctx || !pipe || !ub || !voxel_tex || !fields_tex || !voxel_sampler || !chunk_lookup_buf || !noise_tex || !noise_sampler) {
+    if (!ctx || !pipe || !ub || !voxel_tex || !fields_tex || !interaction_tex || !water_tex || !gas_tex || !voxel_sampler || !chunk_lookup_buf || !noise_tex || !noise_sampler) {
         wgpu_set_error("wgpu_create_voxel_render_bind_group_chunked: null argument");
         return NULL;
     }
@@ -1874,7 +1942,7 @@ static WGPUBindGroup wgpu_create_voxel_render_bind_group_chunked(
         return NULL;
     }
 
-    WGPUBindGroupEntry entries[9] = {
+    WGPUBindGroupEntry entries[12] = {
         {
             .binding = 0,
             .buffer  = storage_buf1,
@@ -1919,10 +1987,22 @@ static WGPUBindGroup wgpu_create_voxel_render_bind_group_chunked(
             .binding     = 8,
             .textureView = fields_tex->view,
         },
+        {
+            .binding     = 9,
+            .textureView = interaction_tex->view,
+        },
+        {
+            .binding     = 10,
+            .textureView = water_tex->view,
+        },
+        {
+            .binding     = 11,
+            .textureView = gas_tex->view,
+        },
     };
     WGPUBindGroupDescriptor desc = {
         .layout     = layout,
-        .entryCount = 9,
+        .entryCount = 12,
         .entries    = entries,
     };
 
@@ -1972,7 +2052,9 @@ static void wgpu_copy_buffer_to_3d_texture(
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(ctx->queue, 1, &cmd);
     wgpuCommandBufferRelease(cmd);
+#ifndef __EMSCRIPTEN__
     wgpuDevicePoll(ctx->device, 1, NULL);
+#endif
 }
 
 static void wgpu_copy_buffer_subregion_to_3d_texture(
@@ -2107,6 +2189,90 @@ static WGPUBindGroup wgpu_create_jit_bind_group(
     wgpuBindGroupLayoutRelease(layout);
     if (!bg) {
         wgpu_set_error("wgpu_create_jit_bind_group: bind group creation failed");
+    }
+    return bg;
+}
+
+static WGPUBindGroup wgpu_create_jit_bind_group_water(
+    WGPUContext* ctx,
+    WGPUComputePipeline pipeline,
+    WGPUBuffer input_buf,
+    WGPUBuffer output_buf,
+    WGPUBuffer uniform_buf,
+    WGPUBuffer chunk_info_buf,
+    WGPUBuffer chunk_lookup_buf,
+    WGPURenderTexture* voxel_tex,
+    WGPURenderTexture* water_tex,
+    WGPURenderTexture* gas_tex)
+{
+    WGPUBindGroupLayout layout = wgpuComputePipelineGetBindGroupLayout(pipeline, 0);
+    if (!layout) {
+        wgpu_set_error("wgpu_create_jit_bind_group_water: failed to get bind group layout");
+        return NULL;
+    }
+
+    WGPUBindGroupEntry entries[8];
+    
+    entries[0] = (WGPUBindGroupEntry){
+        .binding = 0,
+        .buffer = input_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(input_buf),
+    };
+    
+    entries[1] = (WGPUBindGroupEntry){
+        .binding = 1,
+        .buffer = output_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(output_buf),
+    };
+    
+    entries[2] = (WGPUBindGroupEntry){
+        .binding = 2,
+        .buffer = uniform_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(uniform_buf),
+    };
+    
+    entries[3] = (WGPUBindGroupEntry){
+        .binding = 3,
+        .buffer = chunk_info_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(chunk_info_buf),
+    };
+    
+    entries[4] = (WGPUBindGroupEntry){
+        .binding = 4,
+        .buffer = chunk_lookup_buf,
+        .offset = 0,
+        .size = wgpuBufferGetSize(chunk_lookup_buf),
+    };
+    
+    entries[5] = (WGPUBindGroupEntry){
+        .binding = 5,
+        .textureView = voxel_tex->view,
+    };
+
+    entries[6] = (WGPUBindGroupEntry){
+        .binding = 6,
+        .textureView = water_tex->view,
+    };
+
+    entries[7] = (WGPUBindGroupEntry){
+        .binding = 7,
+        .textureView = gas_tex->view,
+    };
+
+    WGPUBindGroupDescriptor desc = {
+        .layout = layout,
+        .entries = entries,
+        .entryCount = 8,
+    };
+
+    WGPUBindGroup bg = wgpuDeviceCreateBindGroup(ctx->device, &desc);
+    wgpuBindGroupLayoutRelease(layout);
+    if (!bg) {
+        wgpu_set_error("wgpu_create_jit_bind_group_water: bind group creation failed");
     }
     return bg;
 }

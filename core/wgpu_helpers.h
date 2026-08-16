@@ -7,8 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __EMSCRIPTEN__
+#include <webgpu/webgpu.h>
+#include <emscripten.h>
+#else
 #include "webgpu.h"
 #include "wgpu.h"
+#endif
 
 /* Opaque context holding everything wgpu needs to run compute. */
 typedef struct WGPUContext {
@@ -100,8 +105,28 @@ static WGPUContext* wgpu_context_create(void) {
     WGPURequestAdapterCallbackInfo adapter_cb = {
         .mode = WGPUCallbackMode_AllowSpontaneous, .callback = on_adapter, .userdata1 = &ar,
     };
-    wgpuInstanceRequestAdapter(ctx->instance, NULL, adapter_cb);
+    WGPURequestAdapterOptions options = {
+        .nextInChain = NULL,
+#ifdef __EMSCRIPTEN__
+        .featureLevel = WGPUFeatureLevel_Undefined,
+#else
+        .featureLevel = WGPUFeatureLevel_Core,
+#endif
+        .powerPreference = WGPUPowerPreference_HighPerformance,
+        .forceFallbackAdapter = false,
+#ifdef __EMSCRIPTEN__
+        .backendType = WGPUBackendType_Undefined,
+#else
+        .backendType = WGPUBackendType_Vulkan,
+#endif
+        .compatibleSurface = NULL
+    };
+    wgpuInstanceRequestAdapter(ctx->instance, &options, adapter_cb);
+#ifdef __EMSCRIPTEN__
+    while (!ar.done) emscripten_sleep(10);
+#else
     while (!ar.done) wgpuInstanceProcessEvents(ctx->instance);
+#endif
 
     if (!ar.adapter) {
         wgpu_set_error("wgpuInstanceRequestAdapter failed — no suitable GPU adapter found");
@@ -114,13 +139,30 @@ static WGPUContext* wgpu_context_create(void) {
     WGPURequestDeviceCallbackInfo device_cb = {
         .mode = WGPUCallbackMode_AllowSpontaneous, .callback = on_device, .userdata1 = &dr,
     };
+#ifdef __EMSCRIPTEN__
     WGPUDeviceDescriptor device_desc = {
+        .requiredFeatureCount = 0,
+        .requiredFeatures = NULL,
         .uncapturedErrorCallbackInfo = {
             .callback  = on_device_error,
         },
     };
+#else
+    WGPUFeatureName required_features[] = { (WGPUFeatureName)WGPUNativeFeature_ShaderInt64 };
+    WGPUDeviceDescriptor device_desc = {
+        .requiredFeatureCount = 1,
+        .requiredFeatures = required_features,
+        .uncapturedErrorCallbackInfo = {
+            .callback  = on_device_error,
+        },
+    };
+#endif
     wgpuAdapterRequestDevice(ctx->adapter, &device_desc, device_cb);
+#ifdef __EMSCRIPTEN__
+    while (!dr.done) emscripten_sleep(10);
+#else
     while (!dr.done) wgpuInstanceProcessEvents(ctx->instance);
+#endif
 
     if (!dr.device) {
         wgpu_set_error("wgpuAdapterRequestDevice failed — device creation refused");
@@ -268,14 +310,20 @@ static void wgpu_read_buffer(WGPUContext* ctx, WGPUBuffer buffer,
     wgpuCommandEncoderRelease(encoder);
     wgpuQueueSubmit(ctx->queue, 1, &cmd);
     wgpuCommandBufferRelease(cmd);
+#ifndef __EMSCRIPTEN__
     wgpuDevicePoll(ctx->device, 1, NULL);
+#endif
 
     MapResult mr = {0};
     WGPUBufferMapCallbackInfo map_cb = {
         .mode = WGPUCallbackMode_AllowSpontaneous, .callback = on_map, .userdata1 = &mr,
     };
     wgpuBufferMapAsync(staging, WGPUMapMode_Read, 0, size, map_cb);
+#ifdef __EMSCRIPTEN__
+    while (!mr.done) emscripten_sleep(10);
+#else
     while (!mr.done) wgpuInstanceProcessEvents(ctx->instance);
+#endif
 
     const void* mapped = wgpuBufferGetMappedRange(staging, 0, size);
     memcpy(out, mapped, size);

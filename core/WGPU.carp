@@ -28,6 +28,8 @@
 (add-lib "-lwgpu_native")
 (relative-include "wgpu_helpers.h")
 
+(definterface count (Fn [a] Int))
+
 ; Opaque wgpu handle types — registered at top level so they're
 ; accessible as plain WGPUContext, WGPUBuffer etc. everywhere.
 ; copy is trivial: these are C pointer typedefs, copying = copying the pointer.
@@ -56,13 +58,33 @@
   (deftemplate copy (Fn [(Ref WGPUComputePipeline)] WGPUComputePipeline)
     "WGPUComputePipeline $NAME(WGPUComputePipeline* p)"
     "$DECL { return *p; }")
-  (implements copy WGPUComputePipeline.copy))
+  (implements copy WGPUComputePipeline.copy)
+
+  (deftemplate str (Fn [(Ref WGPUComputePipeline)] String)
+    "String $NAME(WGPUComputePipeline* p)"
+    "$DECL { return strdup(\"WGPUComputePipeline\"); }")
+  (implements str WGPUComputePipeline.str)
+
+  (deftemplate prn (Fn [WGPUComputePipeline] String)
+    "String $NAME(WGPUComputePipeline p)"
+    "$DECL { return strdup(\"WGPUComputePipeline\"); }")
+  (implements prn WGPUComputePipeline.prn))
 
 (defmodule WGPUBindGroup
   (deftemplate copy (Fn [(Ref WGPUBindGroup)] WGPUBindGroup)
     "WGPUBindGroup $NAME(WGPUBindGroup* bg)"
     "$DECL { return *bg; }")
-  (implements copy WGPUBindGroup.copy))
+  (implements copy WGPUBindGroup.copy)
+
+  (deftemplate str (Fn [(Ref WGPUBindGroup)] String)
+    "String $NAME(WGPUBindGroup* bg)"
+    "$DECL { return strdup(\"WGPUBindGroup\"); }")
+  (implements str WGPUBindGroup.str)
+
+  (deftemplate prn (Fn [WGPUBindGroup] String)
+    "String $NAME(WGPUBindGroup bg)"
+    "$DECL { return strdup(\"WGPUBindGroup\"); }")
+  (implements prn WGPUBindGroup.prn))
 
 (defmodule WGPU
 

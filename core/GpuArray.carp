@@ -1,5 +1,7 @@
 (load "WGPU.carp")
 
+(definterface count (Fn [a] Int))
+
 ; GpuArray — a GPU-resident buffer of floats.
 ;
 ; Wraps a WGPUBuffer together with its owning context and element count.

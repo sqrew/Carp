@@ -179,6 +179,9 @@
   (register create-texture-bind-group- (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper)
                                              (Ptr WGPURenderTexture) WGPUSampler] WGPUBindGroup)
                                                                             "wgpu_create_texture_bind_group")
+  (register create-composite-bind-group- (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper)
+                                              (Ptr WGPURenderTexture) (Ptr WGPUDepthTexture) (Ptr WGPURenderTexture) WGPUSampler] WGPUBindGroup)
+                                                                            "wgpu_create_composite_bind_group")
 
   ; 3D Texture and Voxel helpers
   (register create-3d-texture- (Fn [(Ptr WGPUContext) Int Int Int (Ptr CChar)]
@@ -192,13 +195,14 @@
                                                   "wgpu_copy_buffer_subregion_to_3d_texture")
   (register copy-buffer-to-buffer- (Fn [(Ptr WGPUContext) WGPUBuffer WGPUBuffer Uint64] ()) "wgpu_copy_buffer_to_buffer")
   (register create-jit-bind-group- (Fn [(Ptr WGPUContext) WGPUComputePipeline WGPUBuffer WGPUBuffer WGPUBuffer WGPUBuffer WGPUBuffer (Ptr WGPURenderTexture)] WGPUBindGroup) "wgpu_create_jit_bind_group")
+  (register create-jit-bind-group-water- (Fn [(Ptr WGPUContext) WGPUComputePipeline WGPUBuffer WGPUBuffer WGPUBuffer WGPUBuffer WGPUBuffer (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture)] WGPUBindGroup) "wgpu_create_jit_bind_group_water")
   (register create-voxel-render-bind-group- (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper)
                                                   WGPUBuffer WGPUBuffer (Ptr WGPUUniformBufferWrapper)
                                                   (Ptr WGPURenderTexture) WGPUSampler] WGPUBindGroup)
                                                                             "wgpu_create_voxel_render_bind_group")
   (register create-voxel-render-bind-group-chunked- (Fn [(Ptr WGPUContext) (Ptr WGPURenderPipelineWrapper)
                                                           WGPUBuffer WGPUBuffer (Ptr WGPUUniformBufferWrapper)
-                                                          (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler WGPUBuffer
+                                                          (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) (Ptr WGPURenderTexture) WGPUSampler WGPUBuffer
                                                           (Ptr WGPURenderTexture) WGPUSampler] WGPUBindGroup)
                                                                                     "wgpu_create_voxel_render_bind_group_chunked")
 
@@ -301,6 +305,13 @@ Returns (Success bind-group) or (Error message).")
         (Result.Error (get-error))
         (Result.Success bg))))
 
+  (doc create-composite-bind-group "Creates a bind group for full-screen composition: terrain color (0), depth (1), volumetric (2), and sampler (3).")
+  (defn create-composite-bind-group [ctx pipeline terrain-color depth-tex volumetric sampler]
+    (let [bg (create-composite-bind-group- ctx pipeline terrain-color depth-tex volumetric sampler)]
+      (if (bindgroup-null?- bg)
+        (Result.Error (get-error))
+        (Result.Success bg))))
+
   (doc create-3d-texture "Creates an offscreen 3D texture.
 `format` is a texture format string: e.g. \"rgba16float\".
 Returns (Success render-texture) or (Error message).
@@ -325,8 +336,8 @@ Returns (Success bind-group) or (Error message).")
 
   (doc create-voxel-render-bind-group-chunked "Creates a bind group for chunked voxel rendering.
 Returns (Success bind-group) or (Error message).")
-  (defn create-voxel-render-bind-group-chunked [ctx pipeline storage-buf1 storage-buf2 ub voxel-tex fields-tex voxel-sampler chunk-lookup-buf noise-tex noise-sampler]
-    (let [bg (create-voxel-render-bind-group-chunked- ctx pipeline storage-buf1 storage-buf2 ub voxel-tex fields-tex voxel-sampler chunk-lookup-buf noise-tex noise-sampler)]
+  (defn create-voxel-render-bind-group-chunked [ctx pipeline storage-buf1 storage-buf2 ub voxel-tex fields-tex interaction-tex water-tex gas-tex voxel-sampler chunk-lookup-buf noise-tex noise-sampler]
+    (let [bg (create-voxel-render-bind-group-chunked- ctx pipeline storage-buf1 storage-buf2 ub voxel-tex fields-tex interaction-tex water-tex gas-tex voxel-sampler chunk-lookup-buf noise-tex noise-sampler)]
       (if (bindgroup-null?- bg)
         (Result.Error (get-error))
         (Result.Success bg))))
@@ -636,6 +647,13 @@ Returns (Success bind-group) or (Error message).")
   (doc create-jit-bind-group "Creates a bind group for JIT shaders containing input grid, output grid, uniforms, chunk info, chunk lookup data, and voxel texture.")
   (defn create-jit-bind-group [ctx pipeline input-buf output-buf uniform-buf chunk-info-buf chunk-lookup-buf voxel-tex]
     (let [bg (create-jit-bind-group- ctx pipeline input-buf output-buf uniform-buf chunk-info-buf chunk-lookup-buf voxel-tex)]
+      (if (bindgroup-null?- bg)
+        (Result.Error (get-error))
+        (Result.Success bg))))
+
+  (doc create-jit-bind-group-water "Creates a bind group for JIT water shaders containing input grid, output grid, uniforms, chunk info, chunk lookup data, voxel texture, water texture, and gas texture.")
+  (defn create-jit-bind-group-water [ctx pipeline input-buf output-buf uniform-buf chunk-info-buf chunk-lookup-buf voxel-tex water-tex gas-tex]
+    (let [bg (create-jit-bind-group-water- ctx pipeline input-buf output-buf uniform-buf chunk-info-buf chunk-lookup-buf voxel-tex water-tex gas-tex)]
       (if (bindgroup-null?- bg)
         (Result.Error (get-error))
         (Result.Success bg))))
