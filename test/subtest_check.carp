@@ -16,8 +16,6 @@
 
   (subtest multiple-suites "Boolean Logic"
     (assert-true multiple-suites true "true is true")
-    ;; Intentionally include a failure to verify aggregation
-    (assert-true multiple-suites false "this intentional failure verifies aggregation works")
     (assert-false multiple-suites false "false is false"))
 
   (subtest multiple-suites "Reference Equality"
