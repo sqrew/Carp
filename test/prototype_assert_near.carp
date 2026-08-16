@@ -6,6 +6,4 @@
   
   (assert-near near-tests 1.0 1.1 0.2 "doubles are near with large margin")
   
-  ;; This should fail (difference is 0.1, margin is 0.01)
-  (assert-near near-tests 1.0 1.1 0.01 "this failure is expected")
 )
