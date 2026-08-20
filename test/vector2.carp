@@ -24,6 +24,14 @@
                 &(sub &(init 2.0 1.0) &(init 1.0 2.0))
                 "sub operator works")
   (assert-equal test
+                &(init 2.0 2.0)
+                &(Vector2.cmul &(init 2.0 1.0) &(init 1.0 2.0))
+                "cmul works")
+  (assert-equal test
+                &(init -2.0 -1.0)
+                &(Vector2.neg &(init 2.0 1.0))
+                "neg works")
+  (assert-equal test
                 &(init 4.0 2.0)
                 &(mul &(init 2.0 1.0) 2.0)
                 "mul operator works")
