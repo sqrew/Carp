@@ -25,6 +25,14 @@
   (defn sub [a b]
     (zip - a b))
 
+  (doc cmul "Get the component-wise product of two vectors.")
+  (defn cmul [a b]
+    (zip * a b))
+
+  (doc neg "Negate all components of a vector.")
+  (defn neg [a]
+    (map neg a))
+
   (defn mul [a n]
     (init (* @(x a) n)
           (* @(y a) n)))
