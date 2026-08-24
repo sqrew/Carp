@@ -1,0 +1,9 @@
+(load-and-use Test)
+
+(deftest near-tests
+  (assert-near near-tests 1.0f 1.000001f 0.0001f "floats are near with float margin")
+  (assert-near near-tests 1.0 1.000001 0.0001 "doubles are near with double margin")
+  
+  (assert-near near-tests 1.0 1.1 0.2 "doubles are near with large margin")
+  
+)

@@ -65,6 +65,10 @@ Example:
   (defn assert-ref-equal [state x y descr]
     (handler state &x &y descr "value" =))
 
+  (doc assert-near "Assert that x and y are approximately equal within a specified margin.")
+  (defn assert-near [state x y margin descr]
+    (assert-op state x y descr (fn [a b] (Generics.approx-margin a b margin))))
+
   (doc assert-just "Assert that x is a `Just`.")
   (defn assert-just [state x descr]
     (assert-true state (Maybe.just? x) descr))
