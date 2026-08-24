@@ -1,0 +1,29 @@
+;; This file verifies the 'subtest' macro functionality in core/Test.carp
+;; 'subtest' allows grouping related assertions together with a label,
+;; providing better organization and hierarchical output within a single deftest.
+
+(load-and-use Test)
+
+(deftest multiple-suites
+  ;; 'subtest' takes the parent suite name, a description, and the test forms.
+  ;; It correctly chains the parent state, ensuring that failures in a subtest
+  ;; are counted in the final results of the parent suite.
+  
+  (subtest multiple-suites "Arithmetic Operations"
+    (assert-equal multiple-suites 4 (+ 2 2) "2 + 2 = 4")
+    (assert-equal multiple-suites 10 (* 2 5) "2 * 5 = 10")
+    (assert-equal multiple-suites 0 (- 5 5) "5 - 5 = 0"))
+
+  (subtest multiple-suites "Boolean Logic"
+    (assert-true multiple-suites true "true is true")
+    (assert-false multiple-suites false "false is false"))
+
+  (subtest multiple-suites "Reference Equality"
+    (let [s @"hello"]
+      (assert-ref-equal multiple-suites s @&s "string is ref-equal to itself")))
+)
+
+;; The output should show:
+;; 1. The start and end of each subtest.
+;; 2. Individual assertion results.
+;; 3. Final aggregated results (7 passed, 1 failed in this case).

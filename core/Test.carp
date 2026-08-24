@@ -180,6 +180,21 @@ Example:
         `(Test.print-test-results %name)
         `(do %@(with-test-internal name forms))))))
 
+(doc subtest "allows grouping tests within a larger test suite.
+
+Example:
+```
+(deftest test
+  (subtest test \"Arithmetic\"
+    (assert-equal test 4 (+ 2 2) \"2 + 2 = 4\")))
+```")
+(defmacro subtest [parent descr :rest forms]
+  `(do
+     (IO.println &(str* ">>> Subtest: " %descr))
+     %@(with-test-internal parent forms)
+     (IO.println &(str* "<<< Finished Subtest: " %descr "\n"))
+     @(the (Ref Test.State) %parent)))
+
 (defmacro deftest [name :rest forms]
   `(defn main []
     (let [%name &(Test.State.init 0 0)]
