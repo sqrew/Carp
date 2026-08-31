@@ -6,9 +6,12 @@
 (docexample my-add "(my-add 10 20)")
 (defn my-add [a b] (+ a b))
 
+(defmacro get-my-add-docexample []
+  (meta my-add "docexample"))
+
 (deftest docexample-test
   (assert-dynamic-equal docexample-test
-                        (meta my-add "docexample")
+                        (get-my-add-docexample)
                         "(my-add 10 20)"
                         "docexample metadata is resolved correctly at compile-time")
 )
